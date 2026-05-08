@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @using API.Shared
 @using API.Shared.Models
 @inject HttpClient Http
@@ -6,6 +6,19 @@
 <h1>Statistics</h1>
 <hr />
 
+@if (hasError)
+{
+    <div class="alert alert-danger" style="margin-top: 20px;">
+        <h4>Error Loading Data</h4>
+        <p>@errorMsg</p>
+    </div>
+}
+else if (patients_array == null)
+{
+    <p>Loading data from database... Please wait.</p>
+}
+else
+{
 <RadzenCard>
     <div class="row">
         <div class="col-sm">
@@ -58,6 +71,7 @@
         </div>
     </div>
 </RadzenCard>
+}
 
 @code
 {
@@ -100,10 +114,22 @@
     RoomInfo[] room_info_array;
     DoctorInfo[] doctor_info_array;
 
+    bool hasError = false;
+    string errorMsg = "";
+
     protected override async Task OnInitializedAsync()
     {
-        patients_array = await Http.GetFromJsonAsync<Patient[]>("api/Patients");
-        rooms_array = await Http.GetFromJsonAsync<Room[]>("api/Rooms");
+        try
+        {
+            patients_array = await Http.GetFromJsonAsync<Patient[]>("api/Patients");
+            rooms_array = await Http.GetFromJsonAsync<Room[]>("api/Rooms");
+            
+            if (patients_array == null || patients_array.Length == 0)
+            {
+                hasError = true;
+                errorMsg = "Database is connected but no data is found. Please run INSERT.sql script in SSMS to insert dummy data.";
+                return;
+            }
         doctors_array = await Http.GetFromJsonAsync<Doctor[]>("api/Doctors");
         nurses_array = await Http.GetFromJsonAsync<Nurse[]>("api/Nurses");
         workers_array = await Http.GetFromJsonAsync<Worker[]>("api/Workers");
@@ -217,6 +243,11 @@
         }
         doctors_info_list.Add(new DoctorInfo(temp_id, temp_count));
         doctor_info_array = doctors_info_list.ToArray();
-
+        }
+        catch (Exception ex)
+        {
+            hasError = true;
+            errorMsg = "Failed to connect to the Database API. Did you run the SQL scripts in SSMS to create the database? Error details: " + ex.Message;
+        }
     }
 }
